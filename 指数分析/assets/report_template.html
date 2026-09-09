@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{REPORT_TITLE}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+            font-variant-numeric: tabular-nums;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: linear-gradient(135deg, #faf8f5 0%, #f5f0e8 100%);
+            color: #2d2d2d;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .mono { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+        .container { max-width: 980px; margin: 0 auto; padding: 24px 20px 40px; }
+
+        /* 头部 */
+        .header {
+            background: linear-gradient(135deg, #8B0000 0%, #A52A2A 50%, #DC143C 100%);
+            color: #fff; padding: 44px 32px 36px; border-radius: 18px; margin-bottom: 24px;
+            text-align: center; position: relative; overflow: hidden;
+            box-shadow: 0 8px 32px rgba(139, 0, 0, 0.18);
+        }
+        .header::before {
+            content: ''; position: absolute; top: -60%; right: -10%;
+            width: 320px; height: 320px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .header h1 { font-size: 32px; font-weight: 800; margin-bottom: 10px; position: relative; letter-spacing: 0.5px; }
+        .header .code { font-size: 15px; opacity: 0.9; letter-spacing: 2px; position: relative; font-weight: 500; }
+        .header .summary {
+            position: relative; margin-top: 20px; padding: 14px 22px;
+            background: rgba(255,255,255,0.14); backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 12px; font-size: 15px; font-weight: 600;
+            letter-spacing: 0.5px; line-height: 1.5;
+        }
+        .header .summary-label {
+            display: block; font-size: 12px; font-weight: 500;
+            opacity: 0.75; letter-spacing: 3px; margin-bottom: 4px;
+        }
+
+        /* 板块通用 */
+        .section {
+            background: #fff; border-radius: 16px; padding: 28px 28px 24px;
+            margin-bottom: 20px; box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+            transition: box-shadow 0.25s ease;
+        }
+        .section:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+        .section h2 {
+            color: #8B0000; font-size: 19px; font-weight: 700; margin-bottom: 20px;
+            padding-left: 14px; border-left: 4px solid #DC143C;
+            display: flex; align-items: center; gap: 10px; line-height: 1.3;
+        }
+        .section h2 .icon { font-size: 20px; flex-shrink: 0; }
+        .section h2 .subtitle {
+            font-size: 12px; color: #999; font-weight: 400;
+            margin-left: auto; letter-spacing: 0.5px;
+        }
+
+        /* 子板块标题 */
+        .sub-section { margin-bottom: 18px; }
+        .sub-section:last-child { margin-bottom: 0; }
+        .sub-title {
+            font-size: 14px; font-weight: 600; color: #555;
+            margin-bottom: 12px; padding-left: 10px; border-left: 3px solid #f0c0c0;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .sub-title .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 11px; font-weight: 600;
+        }
+        .badge-short { background: #fff3e0; color: #e65100; }
+        .badge-long { background: #e8f5e9; color: #2e7d32; }
+
+        /* 指标卡片网格 */
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px; margin-bottom: 16px;
+        }
+        .metric-card {
+            background: linear-gradient(145deg, #fef6f6 0%, #ffffff 100%);
+            border-radius: 12px; padding: 20px 16px; text-align: center;
+            border: 1px solid rgba(220, 20, 60, 0.08);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 112px; transition: transform 0.2s ease, box-shadow 0.2s ease;
+            overflow: hidden;
+        }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(220, 20, 60, 0.1); }
+        .metric-card .label {
+            font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 500;
+            letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+        }
+        .metric-card .value {
+            font-size: 27px; font-weight: 700; line-height: 1.2;
+            word-break: break-all; overflow-wrap: break-word;
+        }
+        .metric-card .value .unit { font-size: 14px; font-weight: 500; margin-left: 2px; opacity: 0.7; }
+        .metric-card .value.up { color: #DC143C; }
+        .metric-card .value.down { color: #228B22; }
+        .metric-card .value.neutral { color: #444; }
+
+        /* 编制方法信息卡片 */
+        .info-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px; margin-bottom: 16px;
+        }
+        .info-card {
+            background: linear-gradient(145deg, #fef6f6 0%, #ffffff 100%);
+            border-radius: 12px; padding: 18px 16px;
+            border: 1px solid rgba(220, 20, 60, 0.08);
+            display: flex; flex-direction: column; justify-content: flex-start;
+            min-height: 100px; overflow: hidden;
+        }
+        .info-card .label {
+            font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 8px; font-weight: 600; flex-shrink: 0;
+        }
+        .info-card .value {
+            font-size: 14px; color: #333; font-weight: 500; line-height: 1.6;
+            word-break: break-word; overflow-wrap: break-word;
+            display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .info-card.focus .value {
+            color: #8B0000; font-weight: 600; font-size: 16px;
+        }
+
+        /* 分析文字 */
+        .analysis-text {
+            color: #4a4a4a; font-size: 14px; line-height: 2;
+            padding: 18px 20px; background: linear-gradient(145deg, #faf8f5 0%, #f7f2ea 100%);
+            border-radius: 12px; border-left: 3px solid #DC143C;
+            word-break: break-word; overflow-wrap: break-word;
+        }
+        .analysis-text p { margin: 0; }
+
+        /* 表格 */
+        .table-wrapper {
+            width: 100%; overflow-x: auto; border-radius: 12px; margin-bottom: 16px;
+            border: 1px solid #f0e6e6;
+        }
+        .data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .data-table thead th {
+            background: linear-gradient(145deg, #fef6f6 0%, #fff 100%);
+            color: #8B0000; font-weight: 600; font-size: 12px; padding: 13px 14px;
+            text-align: left; border-bottom: 2px solid #f0e6e6; letter-spacing: 0.5px; white-space: nowrap;
+        }
+        .data-table tbody td {
+            padding: 12px 14px; border-bottom: 1px solid #f5f0f0; font-size: 13.5px; color: #444;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .data-table tbody tr:hover { background: #fefcfc; }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+        .data-table .rank {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 26px; height: 26px; border-radius: 50%;
+            background: #fef6f6; color: #8B0000; font-size: 12px; font-weight: 600;
+        }
+        .data-table .rank.top3 { background: #DC143C; color: #fff; }
+        .data-table tfoot td {
+            padding: 13px 14px; background: #fef6f6; font-weight: 700; color: #8B0000; font-size: 13.5px;
+        }
+
+        /* 图表容器 */
+        .chart-container {
+            max-width: 100%; margin: 0 auto 18px; position: relative;
+            background: #fff; border-radius: 12px; border: 1px solid #f0e6e6;
+            padding: 16px; min-height: 320px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .chart-container canvas { max-width: 100% !important; max-height: 360px !important; }
+        .chart-loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 2;
+        }
+        .spinner {
+            width: 36px; height: 36px; border: 3px solid #f0e6e6;
+            border-top-color: #DC143C; border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        .chart-loading .loading-text { font-size: 12px; color: #999; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 饼图容器 */
+        .pie-container {
+            max-width: 480px; margin: 0 auto 18px; position: relative;
+            background: #fff; border-radius: 12px; border: 1px solid #f0e6e6;
+            padding: 16px; min-height: 300px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pie-container canvas { max-width: 100% !important; max-height: 320px !important; }
+
+        /* 技术指标网格 */
+        .tech-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px; margin-bottom: 18px;
+        }
+        .tech-item {
+            background: linear-gradient(145deg, #faf8f5 0%, #fff 100%);
+            border-radius: 10px; padding: 12px 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid #f0e6e6; min-height: 44px;
+        }
+        .tech-label {
+            font-size: 12px; color: #888; font-weight: 500; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; max-width: 55%;
+        }
+        .tech-value { font-size: 14px; font-weight: 600; color: #333; white-space: nowrap; }
+        .tech-value.up { color: #DC143C; }
+        .tech-value.down { color: #228B22; }
+
+        /* 底部 */
+        .footer { text-align: center; padding: 28px 20px 12px; color: #aaa; font-size: 12px; line-height: 2.2; }
+        .footer .divider { width: 40px; height: 2px; background: #e0d5d5; margin: 0 auto 16px; border-radius: 1px; }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .container { padding: 14px 12px 30px; }
+            .header { padding: 32px 20px 28px; border-radius: 14px; }
+            .header h1 { font-size: 24px; }
+            .header .code { font-size: 13px; letter-spacing: 1px; }
+            .section { padding: 20px 16px 18px; border-radius: 14px; }
+            .section h2 { font-size: 17px; margin-bottom: 16px; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .metric-card { min-height: 96px; padding: 16px 10px; }
+            .metric-card .value { font-size: 22px; }
+            .info-grid { grid-template-columns: 1fr; }
+            .info-card { min-height: 88px; }
+            .tech-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-container, .pie-container { min-height: 260px; padding: 10px; }
+            .data-table thead th, .data-table tbody td { padding: 10px 8px; font-size: 12px; }
+            .analysis-text { padding: 14px 16px; font-size: 13px; line-height: 1.9; }
+        }
+        @media (max-width: 380px) {
+            .metrics-grid { grid-template-columns: 1fr 1fr; }
+            .tech-grid { grid-template-columns: 1fr; }
+        }
+        @media print {
+            body { background: #fff; }
+            .section { box-shadow: none; border: 1px solid #eee; break-inside: avoid; }
+            .header { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>{{DISPLAY_NAME}}</h1>
+            <div class="code">{{INDEX_CODE}} · {{INDEX_NAME}}</div>
+            <div class="summary">
+                <span class="summary-label">SUMMARY 总结</span>
+                {{SUMMARY}}
+            </div>
+        </div>
+
+        <!-- 一、编制方法 -->
+        <div class="section methodology">
+            <h2><span class="icon">&#128203;</span> 编制方法</h2>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="label">基日</div>
+                    <div class="value">{{BASE_DATE}}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">样本空间</div>
+                    <div class="value">{{SAMPLE_SPACE}}</div>
+                </div>
+                <div class="info-card focus">
+                    <div class="label">聚焦方向</div>
+                    <div class="value">{{FOCUS_DIRECTION}}</div>
+                </div>
+            </div>
+            <div class="analysis-text">
+                <p>{{METHODOLOGY_ANALYSIS}}</p>
+            </div>
+        </div>
+
+        <!-- 二、最新行情 -->
+        <div class="section latest-market">
+            <h2><span class="icon">&#128200;</span> 最新行情 <span class="subtitle">LATEST</span></h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="label">近一周涨跌</div>
+                    <div class="value {{RETURN_1W_CLASS}}">{{RETURN_1W}}%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">近一月涨跌</div>
+                    <div class="value {{RETURN_1M_CLASS}}">{{RETURN_1M}}%</div>
+                </div>
+            </div>
+            <div class="analysis-text">
+                <p>{{LATEST_MARKET_ANALYSIS}}</p>
+            </div>
+        </div>
+
+        <!-- 三、指数表现（短期+长期+折线图） -->
+        <div class="section performance">
+            <h2><span class="icon">&#128200;</span> 指数表现</h2>
+
+            <!-- 短期表现 -->
+            <div class="sub-section">
+                <div class="sub-title"><span class="badge badge-short">短期</span> 近3个月 / 近1年 / 今年以来 / 近1年最大回撤</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="label">近3个月涨跌</div>
+                        <div class="value {{RETURN_3M_CLASS}}">{{RETURN_3M}}%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">近一年涨跌</div>
+                        <div class="value {{RETURN_1Y_CLASS}}">{{RETURN_1Y}}%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">今年以来涨跌</div>
+                        <div class="value {{RETURN_YTD_CLASS}}">{{RETURN_YTD}}%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">近一年最大回撤</div>
+                        <div class="value down">-{{MAX_DD_1Y}}%</div>
+                    </div>
+                </div>
+                <div class="analysis-text">
+                    <p>{{SHORT_TERM_ANALYSIS}}</p>
+                </div>
+            </div>
+
+            <!-- 长期表现 -->
+            <div class="sub-section">
+                <div class="sub-title"><span class="badge badge-long">长期</span> 近3年年化 / 近5年年化 / 近3年夏普比率 / 近3年最大回撤</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="label">近三年年化收益</div>
+                        <div class="value {{ANNUAL_RETURN_3Y_CLASS}}">{{ANNUAL_RETURN_3Y}}%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">近五年年化收益</div>
+                        <div class="value {{ANNUAL_RETURN_5Y_CLASS}}">{{ANNUAL_RETURN_5Y}}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">近三年夏普比率</div>
+                        <div class="value neutral">{{SHARPE_RATIO}}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">近三年最大回撤</div>
+                        <div class="value down">-{{MAX_DD_3Y}}%</div>
+                    </div>
+                </div>
+                <div class="analysis-text">
+                    <p>{{LONG_TERM_ANALYSIS}}</p>
+                </div>
+            </div>
+
+            <!-- 近三年行情折线图 -->
+            <div class="sub-section">
+                <div class="sub-title"><span class="badge badge-long">走势</span> 近三年行情走势</div>
+                <div class="chart-container">
+                    <div class="chart-loading" id="klineLoading">
+                        <div class="spinner"></div>
+                        <div class="loading-text">图表加载中...</div>
+                    </div>
+                    <canvas id="klineChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 四、估值分析 -->
+        <div class="section valuation">
+            <h2><span class="icon">&#128178;</span> 估值分析 <span class="subtitle">VALUATION</span></h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="label">PE-TTM</div>
+                    <div class="value neutral">{{PE_TTM}}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">估值分位({{PERCENTILE_PERIOD}})</div>
+                    <div class="value neutral">{{PE_PERCENTILE}}</div>
+                </div>
+                {{DIVIDEND_CARD}}
+            </div>
+            <div class="analysis-text">
+                <p>{{VALUATION_ANALYSIS}}</p>
+            </div>
+        </div>
+
+        <!-- 五、技术分析 -->
+        <div class="section technical">
+            <h2><span class="icon">&#128202;</span> 技术分析 <span class="subtitle">TECHNICAL</span></h2>
+            <div class="tech-grid">
+                {{TECH_ITEMS}}
+            </div>
+            <div class="analysis-text">
+                <p>{{TECHNICAL_ANALYSIS}}</p>
+            </div>
+        </div>
+
+        <!-- 六、基本面分析（营收+净利同比组合图） -->
+        <div class="section fundamental">
+            <h2><span class="icon">&#128200;</span> 基本面分析 <span class="subtitle">单季度同比</span></h2>
+            <div class="chart-container">
+                <div class="chart-loading" id="fundLoading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">图表加载中...</div>
+                </div>
+                <canvas id="fundChart"></canvas>
+            </div>
+            <div class="analysis-text">
+                <p>{{FUNDAMENTAL_ANALYSIS}}</p>
+            </div>
+        </div>
+
+        <!-- 七、行业分布（饼图） -->
+        <div class="section industry">
+            <h2><span class="icon">&#127774;</span> 行业分布 <span class="subtitle">中证三级行业</span></h2>
+            <div class="pie-container">
+                <div class="chart-loading" id="industryLoading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">图表加载中...</div>
+                </div>
+                <canvas id="industryChart"></canvas>
+            </div>
+            <div class="analysis-text">
+                <p>{{INDUSTRY_ANALYSIS}}</p>
+            </div>
+        </div>
+
+        <!-- 八、前十大成份股 -->
+        <div class="section components">
+            <h2><span class="icon">&#128202;</span> 前十大成份股</h2>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width:10%">
+                        <col style="width:24%">
+                        <col style="width:20%">
+                        <col style="width:30%">
+                        <col style="width:16%">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>名称</th>
+                            <th>代码</th>
+                            <th>三级行业</th>
+                            <th>权重</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{COMPONENT_ROWS}}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4">前十大合计</td>
+                            <td>{{TOTAL_WEIGHT}}%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="analysis-text">
+                <p>{{COMPONENTS_ANALYSIS}}</p>
+            </div>
+        </div>
+
+        <!-- 底部 -->
+        <div class="footer">
+            <div class="divider"></div>
+            数据来源：Wind金融终端 &nbsp;|&nbsp; 数据截止：{{GENERATE_TIME}}<br>
+            本报告仅供参考，不构成任何投资建议
+        </div>
+    </div>
+
+    <script>
+        // ========== 近三年行情折线图 ==========
+        (function() {
+            const ctx = document.getElementById('klineChart');
+            const loading = document.getElementById('klineLoading');
+            if (!ctx) return;
+
+            const labels = {{KLINE_LABELS_JSON}};
+            const data = {{KLINE_DATA_JSON}};
+
+            if (!labels || labels.length === 0) {
+                if (loading) loading.innerHTML = '<div style="color:#999;font-size:13px;">暂无行情数据</div>';
+                return;
+            }
+
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '指数点位',
+                        data: data,
+                        borderColor: '#DC143C',
+                        backgroundColor: function(context) {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return 'rgba(220, 20, 60, 0.1)';
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, 'rgba(220, 20, 60, 0.25)');
+                            gradient.addColorStop(1, 'rgba(220, 20, 60, 0.01)');
+                            return gradient;
+                        },
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#DC143C',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { intersect: false, mode: 'index' },
+                    layout: { padding: { top: 10, right: 10, bottom: 10, left: 10 } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(45, 45, 45, 0.92)',
+                            titleFont: { family: 'Inter', size: 12 },
+                            bodyFont: { family: 'Inter', size: 13, weight: '600' },
+                            padding: 10, cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) { return '点位: ' + context.parsed.y.toFixed(2); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: { display: false },
+                            ticks: {
+                                font: { family: 'Inter', size: 10 },
+                                color: '#999',
+                                maxTicksLimit: 8,
+                                maxRotation: 0
+                            }
+                        },
+                        y: {
+                            display: true,
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: {
+                                font: { family: 'Inter', size: 10 },
+                                color: '#999',
+                                callback: function(value) { return value.toFixed(0); }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart',
+                        onComplete: function() {
+                            if (loading) {
+                                loading.style.opacity = '0';
+                                loading.style.transition = 'opacity 0.3s';
+                                setTimeout(function() { loading.style.display = 'none'; }, 300);
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+
+        // ========== 基本面分析组合图（营收柱状+净利折线） ==========
+        (function() {
+            const ctx = document.getElementById('fundChart');
+            const loading = document.getElementById('fundLoading');
+            if (!ctx) return;
+
+            const labels = {{FUND_LABELS_JSON}};
+            const revenueData = {{FUND_REVENUE_JSON}};
+            const profitData = {{FUND_PROFIT_JSON}};
+
+            if (!labels || labels.length === 0) {
+                if (loading) loading.innerHTML = '<div style="color:#999;font-size:13px;">暂无基本面数据</div>';
+                return;
+            }
+
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '营收同比(%)',
+                            data: revenueData,
+                            type: 'bar',
+                            backgroundColor: 'rgba(220, 20, 60, 0.65)',
+                            borderColor: '#DC143C',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            yAxisID: 'y',
+                            order: 2
+                        },
+                        {
+                            label: '净利同比(%)',
+                            data: profitData,
+                            type: 'line',
+                            borderColor: '#FF8C00',
+                            backgroundColor: 'rgba(255, 140, 0, 0.1)',
+                            borderWidth: 2.5,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#FF8C00',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointHoverRadius: 7,
+                            tension: 0.3,
+                            fill: false,
+                            yAxisID: 'y1',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    layout: { padding: { top: 10, right: 10, bottom: 10, left: 10 } },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true, pointStyle: 'circle',
+                                font: { size: 12, family: 'Inter' }, color: '#555',
+                                padding: 16
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(45, 45, 45, 0.92)',
+                            titleFont: { family: 'Inter', size: 12 },
+                            bodyFont: { family: 'Inter', size: 12 },
+                            padding: 10, cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 11 }, color: '#888' }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: '营收同比(%)', font: { size: 11 }, color: '#DC143C' },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { font: { family: 'Inter', size: 10 }, color: '#999', callback: function(v) { return v.toFixed(0) + '%'; } }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: '净利同比(%)', font: { size: 11 }, color: '#FF8C00' },
+                            grid: { drawOnChartArea: false },
+                            ticks: { font: { family: 'Inter', size: 10 }, color: '#999', callback: function(v) { return v.toFixed(0) + '%'; } }
+                        }
+                    },
+                    animation: {
+                        duration: 1000, easing: 'easeOutQuart',
+                        onComplete: function() {
+                            if (loading) {
+                                loading.style.opacity = '0';
+                                loading.style.transition = 'opacity 0.3s';
+                                setTimeout(function() { loading.style.display = 'none'; }, 300);
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+
+        // ========== 行业分布饼图 ==========
+        (function() {
+            const ctx = document.getElementById('industryChart');
+            const loading = document.getElementById('industryLoading');
+            if (!ctx) return;
+
+            const labels = {{INDUSTRY_LABELS_JSON}};
+            const data = {{INDUSTRY_DATA_JSON}};
+
+            if (!labels || labels.length === 0) {
+                if (loading) loading.innerHTML = '<div style="color:#999;font-size:13px;">暂无行业数据</div>';
+                return;
+            }
+
+            const chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#DC143C', '#FF6B6B', '#FF8E8E', '#FFB3B3',
+                            '#FFD6D6', '#FFE8E8', '#FFF0F0', '#F5E6E6',
+                            '#E8D0D0', '#DBC0C0', '#CEB0B0', '#C1A0A0'
+                        ],
+                        borderWidth: 2, borderColor: '#fff', hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: true,
+                    layout: { padding: { top: 10, bottom: 10 } },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 14, usePointStyle: true, pointStyle: 'circle',
+                                font: { size: 11.5, family: 'Inter' }, color: '#555',
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    return data.labels.map(function(label, i) {
+                                        const value = data.datasets[0].data[i];
+                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                                        return {
+                                            text: label + ' ' + pct + '%',
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            strokeStyle: data.datasets[0].backgroundColor[i],
+                                            hidden: false, index: i
+                                        };
+                                    });
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(45, 45, 45, 0.92)',
+                            titleFont: { family: 'Inter', size: 13 },
+                            bodyFont: { family: 'Inter', size: 12 },
+                            padding: 10, cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? ((context.raw / total) * 100).toFixed(2) : '0';
+                                    return context.label + ': ' + context.raw + '% (' + pct + '%)';
+                                }
+                            }
+                        }
+                    },
+                    cutout: '58%',
+                    animation: {
+                        duration: 800, easing: 'easeOutQuart',
+                        onComplete: function() {
+                            if (loading) {
+                                loading.style.opacity = '0';
+                                loading.style.transition = 'opacity 0.3s';
+                                setTimeout(function() { loading.style.display = 'none'; }, 300);
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
